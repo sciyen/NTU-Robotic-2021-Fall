@@ -7,8 +7,7 @@ import cv2 as cv
 class ImageProcessing():
     
     def __init__(self,filename):
-        # filename = os.path.abspath(sys.argv[1])
-        self.filename = os.path.abspath("/home/robot/Desktop/HW/images/er7-4.jpg")
+        self.filename = filename
         self.srcIMG = cv.imread(filename,cv.IMREAD_GRAYSCALE)
         self.workIMG = cv.imread(filename,cv.IMREAD_GRAYSCALE)
         self.resultIMG = cv.imread(filename,cv.IMREAD_COLOR)
