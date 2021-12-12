@@ -1,4 +1,4 @@
-Co-authored-by: Kui-Kao <R08921109@ntu.edu.tw>
+authored-by: Kui-Kao <R08921109@ntu.edu.tw>
 
 import numpy as np
 import cv2 as cv
