@@ -33,11 +33,6 @@ class ImageProcessing():
 
     def Processing(self):
             self.pre_Processing()
-
-            # self.visulaize(self.srcIMG,self.workIMG)
-            # return
-            # print(self.workIMG.shape)
-
             pixel = 0
             for row in range(self.workIMG.shape[0]):
                 for col in range(self.workIMG.shape[1]):
@@ -45,20 +40,15 @@ class ImageProcessing():
                         # print(row,col)
                         pixel = pixel + 1
                         self.regionGrowing(row,col,pixel)
-
-            # self.visulaize(self.workIMG)
             region_num, _ = self.__maxmin__(self.workIMG)
 
             self.contour,_ = cv.findContours(self.workIMG,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-
-            # print(len(self.contour))
-            # for i in range(len(contour)):
-            #     cv.drawContours(self.srcIMG,Counter,i,255,8)
             self.centers, self.principal_angles = self.get_contour_centers_principal_angles(self.contour)
-
+            
+            #Debug Only
             print("Centers",self.centers)
             print("principal Angles",self.principal_angles)
-
+            
             self.render_result()
 
     def regionGrowing(self,k,j,i):
@@ -183,8 +173,6 @@ class ImageProcessing():
 if(len(sys.argv) != 2):
     print("python ./hm_3_b.py [image path]")
     quit(-1)
-
-# filename = os.path.abspath("/home/robot/Desktop/HW/images/er7-4.jpg")
     
 filename = os.path.abspath(sys.argv[1])
 
