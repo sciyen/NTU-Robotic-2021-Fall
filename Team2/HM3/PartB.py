@@ -7,6 +7,7 @@ import cv2 as cv
 class ImageProcessing():
     
     def __init__(self,filename):
+        # filename = os.path.abspath(sys.argv[1])
         self.filename = filename
         self.srcIMG = cv.imread(filename,cv.IMREAD_GRAYSCALE)
         self.workIMG = cv.imread(filename,cv.IMREAD_GRAYSCALE)
@@ -33,6 +34,11 @@ class ImageProcessing():
 
     def Processing(self):
             self.pre_Processing()
+
+            # self.visulaize(self.srcIMG,self.workIMG)
+            # return
+            # print(self.workIMG.shape)
+
             pixel = 0
             for row in range(self.workIMG.shape[0]):
                 for col in range(self.workIMG.shape[1]):
@@ -40,15 +46,20 @@ class ImageProcessing():
                         # print(row,col)
                         pixel = pixel + 1
                         self.regionGrowing(row,col,pixel)
+
+            # self.visulaize(self.workIMG)
             region_num, _ = self.__maxmin__(self.workIMG)
 
             self.contour,_ = cv.findContours(self.workIMG,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
+
+            # print(len(self.contour))
+            # for i in range(len(contour)):
+            #     cv.drawContours(self.srcIMG,Counter,i,255,8)
             self.centers, self.principal_angles = self.get_contour_centers_principal_angles(self.contour)
-            
-            #Debug Only
+
             print("Centers",self.centers)
             print("principal Angles",self.principal_angles)
-            
+
             self.render_result()
 
     def regionGrowing(self,k,j,i):
@@ -135,11 +146,12 @@ class ImageProcessing():
         # ((x, y), radius) = cv2.minEnclosingCircle(c)
         centers = np.zeros((len(contours), 2), dtype=np.int16)
         principal_angles = np.zeros((len(contours),1), dtype=np.double)
+        self.M = []
         for i, c in enumerate(contours):
-            self.M = cv.moments(c)
+            self.M.append(cv.moments(c))
             # print(M)
-            center = (int(self.M["m10"] / self.M["m00"]), int(self.M["m01"] / self.M["m00"]))
-            principal_angles[i] = (math.atan2(2*self.M['mu11'], self.M['mu02']-self.M['mu20'])/2)*180/math.pi
+            center = int(self.M[i]["m10"] / self.M[i]["m00"]), int(self.M[i]["m01"] / self.M[i]["m00"])
+            principal_angles[i] = (math.atan2(2*self.M[i]['mu11'], (self.M[i]['mu02']-self.M[i]['mu20'])/2))*180/math.pi
             centers[i] = center
         return centers,principal_angles
 
@@ -150,8 +162,8 @@ class ImageProcessing():
             cv.circle(self.resultIMG,(self.centers[i][0],self.centers[i][1]),2,(255,0,0),8)
             # print(self.centers[i][0])
             cv.line(self.resultIMG,
-            (self.centers[i][0] -line_length , self.centers[i][1] - int(line_length * math.tan(math.atan2(2*self.M['mu11'], self.M['mu20']-self.M['mu02'])/2))),
-            (self.centers[i][0] +line_length , self.centers[i][1] + int(line_length * math.tan(math.atan2(2*self.M['mu11'], self.M['mu20']-self.M['mu02'])/2))),
+            (self.centers[i][0] -line_length , self.centers[i][1] - int(line_length * math.tan(math.atan2(2*self.M[i]['mu11'], self.M[i]['mu20']-self.M[i]['mu02'])/2))),
+            (self.centers[i][0] +line_length , self.centers[i][1] + int(line_length * math.tan(math.atan2(2*self.M[i]['mu11'], self.M[i]['mu20']-self.M[i]['mu02'])/2))),
             (255,125,64),2)
             # cv.line(self.resultIMG,(100,200),(200,300),(255,255,0),10)
         for row in range(self.workIMG.shape[0]):
@@ -173,6 +185,8 @@ class ImageProcessing():
 if(len(sys.argv) != 2):
     print("python ./hm_3_b.py [image path]")
     quit(-1)
+
+# filename = os.path.abspath("/home/robot/Desktop/HW/images/er7-4.jpg")
     
 filename = os.path.abspath(sys.argv[1])
 
