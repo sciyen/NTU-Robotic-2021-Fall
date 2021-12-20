@@ -21,6 +21,18 @@ class Calibration:
         s.write('dist', self.dist)
         s.release()
 
+    def load_extrinsic_from_file(self, path):
+        s = cv.FileStorage(path, cv.FileStorage_READ)
+        self.rvec = s.getNode('rvec').mat()
+        self.tvec = s.getNode('tvec').mat()
+        s.release()
+
+    def write_extrinsic_to_file(self, path):
+        s = cv.FileStorage(path, cv.FileStorage_WRITE)
+        s.write('rvec', self.rvec)
+        s.write('tvec', self.tvec)
+        s.release()
+
     def calibrate_intrinsic(self, size_of_tile=0.023):
         """Record a video, extract the chessboard corners, and 
         calibrate it with pairs of points.
@@ -181,6 +193,8 @@ class Calibration:
                                              flags=cv.SOLVEPNP_ITERATIVE)
         cap.release()
         cv.destroyAllWindows()
+        self.rvec = rvec
+        self.tvec = tvec
         return rvec, tvec
 
 
@@ -188,7 +202,7 @@ class ImageLoader:
     """This class is responsible for providing calibrated images
     """
 
-    def __init__(self, path_to_intrinsic_param='intrinsic_params.yaml') -> None:
+    def __init__(self, recalibrate_extrinsic=True, path_to_intrinsic_param='intrinsic_params.yaml', path_to_extrinsic_param='extrinsic_params.yaml') -> None:
         calibration = Calibration()
         if os.path.isfile(path_to_intrinsic_param):
             print("Load intrinsic parameters.")
@@ -199,9 +213,14 @@ class ImageLoader:
             calibration.calibrate_intrinsic()
             calibration.write_intrinsic_to_file(path=path_to_intrinsic_param)
 
-        input("Press any key to start extrinsic parameters calibration")
+        if recalibrate_extrinsic:
+            input("Press any key to start extrinsic parameters calibration")
+            calibration.calibrate_extrinsic()
+            calibration.write_extrinsic_to_file(path=path_to_extrinsic_param)
+        else:
+            print("Load extrinsic from file")
+            calibration.load_extrinsic_to_file(path=path_to_extrinsic_param)
 
-        calibration.calibrate_extrinsic()
         self.K = calibration.K
         self.dist = calibration.dist
 
