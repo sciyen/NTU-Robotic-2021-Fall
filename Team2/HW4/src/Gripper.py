@@ -34,8 +34,7 @@ class Gripper:
 
         self.arm = ArmControl()
 
-    def __calc_principal_angle(self):
-        pass
+        self.mbTc = self.img_loader.mbTc
 
     def __calc_principal_angle(self, cnt):
         m = cv.moments(cnt)
@@ -92,8 +91,11 @@ class Gripper:
         # Move down
         self.arm.move_to_pose(a_target, a_release_orientation)
 
-    def __transform_img_frame_to_arm_frame(self):
-        pass
+    def __transform_img_frame_to_arm_frame(self, im_pt):
+        depth = None
+        c_pt = self.img_loader.get_c_pt_im(im_pt, depth)
+        b_pt = self.mbTc @ c_pt
+        return b_pt
 
     def run(self):
         cap = cv.VideoCapture(0)
@@ -108,7 +110,7 @@ class Gripper:
         # Find the largest object and set it as base
         cnt, im_pt, target_orien = self.__find_largest_object(
             img=frame, mask=None)
-        b_target = self.__transform_img_frame_to_arm_frame()
+        b_target = self.__transform_img_frame_to_arm_frame(im_pt)
         mask = cnt.copy()
 
         # Iteration until no object can be found
@@ -122,7 +124,7 @@ class Gripper:
                 img=frame, mask=mask)
             if cnt is None:
                 break
-            b_obj = self.__transform_img_frame_to_arm_frame()
+            b_obj = self.__transform_img_frame_to_arm_frame(im_pt)
             self.__grab_and_release(b_obj, obj_orien, b_target, target_orien, )
 
         cap.release()

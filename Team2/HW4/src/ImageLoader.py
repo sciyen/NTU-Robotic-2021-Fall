@@ -197,6 +197,16 @@ class Calibration:
         self.tvec = tvec
         return rvec, tvec
 
+    def get_mbTc(self):
+        mcTb = np.eye(4)
+
+        # The rvec and tvec transform the object frame to camera frame
+        mcTb[:3, :3], jacobian = cv.Rodrigues(self.rvec)
+        mcTb[:3, 3] = self.tvec
+
+        mbTc = np.linalg.inv(mcTb)
+        return mbTc
+
 
 class ImageLoader:
     """This class is responsible for providing calibrated images
@@ -223,10 +233,17 @@ class ImageLoader:
 
         self.K = calibration.K
         self.dist = calibration.dist
+        self.mbTc = calibration.get_mbTc()
 
     def undistort_image(self, img):
         dst = cv.undistort(img, self.K, self.dist)
         return dst
+
+    def get_c_pt_im(self, im_pt, depth):
+        c_homo_pt = np.linalg.inv(
+            self.K) @ np.array([im_pt[0], im_pt[1], 1], ndmin=2).T
+        c_pt = depth * c_homo_pt
+        return np.vstack([c_pt, 1])
 
 
 def main():
