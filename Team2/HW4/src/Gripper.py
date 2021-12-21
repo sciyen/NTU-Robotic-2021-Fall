@@ -13,7 +13,7 @@ class ArmControl:
     def grab(self):
         pass
 
-    def move_to_pose(self, a_pos, a_orien):
+    def move_to_pose(self, pose):
         """Move to a specific pose
         @Params:
             a_pos: 1x4 matrix in homogenous form, describing position
@@ -69,27 +69,31 @@ class Gripper:
             cv.arrowedLine(img, centroid, pt2, (0, 255, 255), 2)
         return max_cnt, centroid, pa
 
-    def __grab_and_release(self, a_obj, a_psi_obj, a_target, a_psi_tar, zoffset_after_release):
-        a_ready_pos = a_obj.copy()
-        a_ready_pos[2, 0] += zoffset_after_release
+    def __grab_and_release(self, b_obj, b_psi_obj, b_target, b_psi_tar, zoffset_after_release):
         # TODO: the other angles need to be determined
-        a_grab_orientation = np.array([0, 0, a_psi_obj], ndmin=2).T
+        b_grab_ori = np.array([0, 0, b_psi_obj])
+        b_grab_pose = np.hstack([b_obj.T[0, :3], b_grab_ori])
+
+        b_ready_pose = b_grab_pose.copy()
+        b_ready_pose[2] += zoffset_after_release
         # Move to target
-        self.arm.move_to_pose(a_ready_pos, a_grab_orientation)
+        self.arm.move_to_pose(b_ready_pose)
         # Move downward
-        self.arm.move_to_pose(a_obj, a_grab_orientation)
+        self.arm.move_to_pose(b_grab_pose)
         # Grab
         self.arm.grab()
 
+        b_release_ori = np.array([0, 0, b_psi_tar])
+        b_release_pose = np.hstack([b_target.T[0, :3], b_release_ori])
+
+        b_ready_pose = b_release_pose.copy()
+        b_ready_pose[2] += zoffset_after_release
         # Go to target position
-        a_ready_pos = a_target.copy()
-        a_ready_pos[2, 0] += zoffset_after_release
-        a_release_orientation = np.array([0, 0, a_psi_tar], ndmin=2).T
-        self.arm.move_to_pose(a_ready_pos, a_release_orientation)
+        self.arm.move_to_pose(b_ready_pose)
         # Check the arm has released
         self.arm.release()
         # Move down
-        self.arm.move_to_pose(a_target, a_release_orientation)
+        self.arm.move_to_pose(b_release_pose)
 
     def __transform_img_frame_to_arm_frame(self, im_pt):
         depth = None
