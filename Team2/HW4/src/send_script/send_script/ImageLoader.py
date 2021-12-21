@@ -4,10 +4,22 @@ import os
 
 from numpy.core.fromnumeric import ndim
 
+import utils
+import ImageProcessing
+
 
 class Calibration:
     def __init__(self) -> None:
-        pass
+        h0 = 105
+        self.samples = np.array([
+            [-200, 530, h0],
+            [0, 530, h0],
+            [200, 530, h0],
+            [-200, 330, h0],
+            [0, 330, h0],
+            [200, 330, h0]]).T
+        self.photo_pose = np.array([[0, 330, 700]]).T
+        self.mbTo = utils.Rz(-np.pi/4)
 
     def load_intrinsic_from_file(self, path):
         s = cv.FileStorage(path, cv.FileStorage_READ)
@@ -34,7 +46,7 @@ class Calibration:
         s.release()
 
     def calibrate_intrinsic(self, size_of_tile=0.023):
-        """Record a video, extract the chessboard corners, and 
+        """Record a video, extract the chessboard corners, and
         calibrate it with pairs of points.
 
         @Params:
@@ -42,7 +54,7 @@ class Calibration:
 
         @Returns:
             K: 3x3 matrix
-            dist: distortion parameters 
+            dist: distortion parameters
         """
         # Defining the dimensions of checkerboard
         CHECKERBOARD = (6, 9)
@@ -81,7 +93,7 @@ class Calibration:
                 gray, CHECKERBOARD, cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE)
 
             """
-            If desired number of corner are detected, we refine the pixel coordinates 
+            If desired number of corner are detected, we refine the pixel coordinates
             and display them on the image.
             """
             if ret == True:
@@ -116,83 +128,62 @@ class Calibration:
         self.K = mtx
         self.dist = dist
 
-    def __move_arm(self, a_pt):
-        pass
+    def setup_bricks(self, arm):
+        b_pt = (self.mbTo @ self.samples).T
+        print(b_pt)
 
-    def __get_marker_pos(self, img):
-        hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-        # ret, thresh = cv.threshold(
-        #    hsv[:, :, 0], 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU)
-        ret, thresh = cv.threshold(
-            hsv[:, :, 0], 35, 255, cv.THRESH_BINARY_INV)
-        ret, thresh = cv.threshold(
-            thresh, 25, 255, cv.THRESH_BINARY)
+        # Place the 6 markers
+        orientation = [-180, 0, 135]
+        for s in b_pt:
+            state_down = np.hstack([s, orientation])
+            state_up = state_down.copy()
+            state_up[2] += 50
+            arm.move_to_pose(state_up)
+            arm.release()
+            arm.move_to_pose(state_down)
+            input('press any key to continue...')
+            arm.grab()
+            arm.release()
+            arm.move_to_pose(state_up)
 
-        # Noise removal
-        kernel = np.ones((3, 3), np.uint8)
-        opening = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel, iterations=2)
+        # Go back and take photo
+        photo = (self.mbTo @ self.photo_pose).T
+        print(photo)
+        arm.move_to_pose(np.hstack([photo[0], orientation]))
 
-        cnts = cv.findContours(thresh, cv.RETR_EXTERNAL,
-                               cv.CHAIN_APPROX_SIMPLE)
-        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-        max_cnt = max(cnts, key=cv.contourArea)
-        fitted_circle = cv.fitEllipse(max_cnt)
-        cv.drawContours(img, [max_cnt], -1, (255, 0, 0), -1)
-        cv.ellipse(img, fitted_circle, (0, 255, 255), 2)
-        print('fitted center of the ball: ', fitted_circle[0])
-
-        cv.imshow('img', img)
-        cv.imshow('thresh', opening)
-        cv.waitKey(100)
-
-    def calibrate_extrinsic(self, scanning_size=(100, 100, 0), stride=(10, 10, 10)):
+    def calibrate_extrinsic(self, img):
         """Procedures:
-        1. Move robot to several positions, 
-        2. Capture the image,
-        3. Extract feature (convert into HSV and find the colored ball)
-        4. Calculate the centroid of the ball
-        5. Repeat from 1~4 and collect the 3D-2D points pairs, finally,
-            solve the extrinsic parameters with solvePnP()
+        1. Move robot to several positions,
+        2. Release the cubes
+        3. Extract feature and calculate the centroid of the ball
+        5. Solve the extrinsic parameters
 
         @Returns:
             ext_params: 2x3 matrix
         """
-        cap = cv.VideoCapture(0)
-        if not cap.isOpened():
-            print("Cannot open camera")
-            exit()
 
-        for z in range(0, scanning_size[2], stride[2]):
-            # Generating scanning queue
-            x = np.arange(-scanning_size[0]//2, scanning_size[0]//2, stride[0])
-            y = np.arange(0, scanning_size[1], stride[1])
-            xx, yy = np.meshgrid(x, y)
-            mesh = np.array([xx, yy]).transpose([1, 2, 0])
-            mesh[1::2] = np.flip(mesh[1::2], axis=1)
-            len_sample = mesh.shape[0] * mesh.shape[1]
-            mesh = np.reshape(mesh, [len_sample, 2])
-            mesh = np.hstack([mesh, z * np.ones((1, len_sample)).T])
+        cv.imwrite('/home/robot/workspace2/team2_ws/img.png', img)
+        thresh = ImageProcessing.object_filtering(img)
+        pose_pa, cnts = ImageProcessing.get_marker_pos(thresh)
+        poses = np.array([p[0] for p in pose_pa])
+        avg_pos = np.mean(poses, axis=0)
+        print("average position of markers: ", avg_pos)
 
-            img_points = []
-            for pt in mesh:
-                # Move the arm to the specific position
-                self.__move_arm(pt)
+        # Rearange the result of centroids
+        img_points = np.zeros((len(poses), 2))
+        upper = poses[poses[:, 1] < avg_pos[1]]
+        img_points[:3] = upper[np.argsort(upper[:, 0])]
+        lower = poses[poses[:, 1] > avg_pos[1]]
+        img_points[3:] = lower[np.argsort(lower[:, 0])]
+        print("img_points: ", img_points)
 
-                # TODO: wait for arm to arrive
-                # Capture frame-by-frame
-                ret, frame = cap.read()
-                if not ret:
-                    print("Can't receive frame (stream end?). Exiting ...")
-                    break
-                im_pt = self.__get_marker_pos(frame)
-                img_points.append(im_pt)
+        # SolvePnP
+        # TODO: the intrinsic parameter might not be available
+        # https://docs.opencv.org/3.4/d9/d0c/group__calib3d.html#ga549c2075fac14829ff4a58bc931c033d
+        b_pt = (self.mbTo @ self.samples).T
+        retval, rvec, tvec = cv.solvePnP(b_pt, img_points, self.K, self.dist,
+                                         flags=cv.SOLVEPNP_ITERATIVE)
 
-            # SolvePnP
-            # https://docs.opencv.org/3.4/d9/d0c/group__calib3d.html#ga549c2075fac14829ff4a58bc931c033d
-            retval, rvec, tvec = cv.solvePnP(mesh, img_points, self.K, self.dist,
-                                             flags=cv.SOLVEPNP_ITERATIVE)
-        cap.release()
-        cv.destroyAllWindows()
         self.rvec = rvec
         self.tvec = tvec
         return rvec, tvec
