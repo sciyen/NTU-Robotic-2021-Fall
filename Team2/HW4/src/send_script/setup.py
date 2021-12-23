@@ -21,10 +21,11 @@ setup(
     entry_points={
         'console_scripts': [
             'send_script=send_script.send_script:main',
-            'img_sub=send_script.image_sub:main'
+            'img_sub=send_script.image_sub:main',
+            'calibration=send_script.calibration:main',
             'talker = send_script.publisher_member_function:main',
             'listener = send_script.subscriber_member_function:main',
-            'vision_script = send_script.vision:main',
+            'vision_script = send_script.vision:main'
         ],
     },
 )
