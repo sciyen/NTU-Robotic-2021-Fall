@@ -21,6 +21,34 @@ class Calibration:
         self.photo_pose = np.array([[0, 330, 700]]).T
         self.mbTo = utils.Rz(-np.pi/4)
 
+    def init_intrinsic(self, path_to_intrinsic_param='intrinsic_params.yaml',
+                       img_path=None):
+        if os.path.isfile(path_to_intrinsic_param):
+            print("Load intrinsic parameters.")
+            self.load_intrinsic_from_file(path=path_to_intrinsic_param)
+        else:
+            print(
+                "No previous calibration file were found, start to calibrate intrinsic parameters.")
+            self.calibrate_intrinsic(img_path)
+            self.write_intrinsic_to_file(path=path_to_intrinsic_param)
+
+    def init_extrinsic(self, recalibrate_extrinsic,
+                       arm=None,
+                       extrinsic_img=None,
+                       path_to_extrinsic_param='extrinsic_params.yaml'):
+        assert (recalibrate_extrinsic == True) and (arm is not None) and (
+            extrinsic_img is not None), "When recalibrate_extrinsic is enabled, the arm instance should be given"
+
+        if recalibrate_extrinsic:
+            input("Press any key to start extrinsic parameters calibration")
+            self.setup_bricks(arm)
+            arm.take_photo()
+            self.calibrate_extrinsic(extrinsic_img)
+            self.write_extrinsic_to_file(path=path_to_extrinsic_param)
+        else:
+            print("Load extrinsic from file")
+            self.load_extrinsic_to_file(path=path_to_extrinsic_param)
+
     def load_intrinsic_from_file(self, path):
         s = cv.FileStorage(path, cv.FileStorage_READ)
         self.K = s.getNode('mtx').mat()
@@ -45,7 +73,7 @@ class Calibration:
         s.write('tvec', self.tvec)
         s.release()
 
-    def calibrate_intrinsic(self, size_of_tile=0.023):
+    def calibrate_intrinsic(self, size_of_tile=0.023, img_path=None):
         """Record a video, extract the chessboard corners, and
         calibrate it with pairs of points.
 
@@ -203,24 +231,11 @@ class ImageLoader:
     """This class is responsible for providing calibrated images
     """
 
-    def __init__(self, recalibrate_extrinsic=True, path_to_intrinsic_param='intrinsic_params.yaml', path_to_extrinsic_param='extrinsic_params.yaml') -> None:
+    def __init__(self) -> None:
+        # Load camera parameters from pre-calibrated file
         calibration = Calibration()
-        if os.path.isfile(path_to_intrinsic_param):
-            print("Load intrinsic parameters.")
-            calibration.load_intrinsic_from_file(path=path_to_intrinsic_param)
-        else:
-            print(
-                "No previous calibration file were found, start to calibrate intrinsic parameters.")
-            calibration.calibrate_intrinsic()
-            calibration.write_intrinsic_to_file(path=path_to_intrinsic_param)
-
-        if recalibrate_extrinsic:
-            input("Press any key to start extrinsic parameters calibration")
-            calibration.calibrate_extrinsic()
-            calibration.write_extrinsic_to_file(path=path_to_extrinsic_param)
-        else:
-            print("Load extrinsic from file")
-            calibration.load_extrinsic_to_file(path=path_to_extrinsic_param)
+        calibration.init_intrinsic()
+        calibration.init_extrinsic(False)
 
         self.K = calibration.K
         self.dist = calibration.dist
