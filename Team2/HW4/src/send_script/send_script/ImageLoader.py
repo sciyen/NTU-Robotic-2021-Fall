@@ -1,6 +1,8 @@
 import numpy as np
 import cv2 as cv
 import os
+import glob
+
 
 from numpy.core.fromnumeric import ndim
 
@@ -78,47 +80,40 @@ class Calibration:
         calibrate it with pairs of points.
 
         @Params:
-            size_of_tile: size of the tile in the chessboard
+            size_of_tile: size of the tile in the chessboard (meter)
 
         @Returns:
             K: 3x3 matrix
             dist: distortion parameters
         """
         # Defining the dimensions of checkerboard
-        CHECKERBOARD = (6, 9)
+        CHECKERBOARD = (9, 6)
 
         # termination criteria
         criteria = (cv.TERM_CRITERIA_EPS +
                     cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
         # Defining the 3D world coordinates of the chessboard
-        objp = np.zeros((1, CHECKERBOARD[0] * CHECKERBOARD[1], 3), np.float32)
-        objp[0, :, :2] = np.mgrid[0:CHECKERBOARD[0],
+        objp = np.zeros((CHECKERBOARD[1] * CHECKERBOARD[0], 3), np.float32)
+        objp[:, :2] = np.mgrid[0:CHECKERBOARD[0],
                                   0:CHECKERBOARD[1]].T.reshape(-1, 2) * size_of_tile
 
         # Arrays to store object points and image points from all the images.
         objpoints = []  # 3d point in real world space
         imgpoints = []  # 2d points in image plane.
+        images = glob.glob(os.path.join(img_path, '*.png')) # open all the images with finename extension "png"
 
-        # Load from camera
-        cap = cv.VideoCapture(0)
-        if not cap.isOpened():
-            print("Cannot open camera")
-            exit()
-        while True:
-            # Capture frame-by-frame
-            ret, frame = cap.read()
-            if not ret:
-                print("Can't receive frame (stream end?). Exiting ...")
-                break
+        # Load images
+        for fname in images:
+            img = cv.imread(fname)
 
             """
             Calibrarion
             """
-            gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
             # Find the chess board corners
             ret, corners = cv.findChessboardCorners(
-                gray, CHECKERBOARD, cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE)
+                gray, CHECKERBOARD, None)
 
             """
             If desired number of corner are detected, we refine the pixel coordinates
@@ -133,14 +128,12 @@ class Calibration:
                 imgpoints.append(corners2)
 
                 # Draw and display the corners
-                img = cv.drawChessboardCorners(
-                    frame, CHECKERBOARD, corners2, ret)
+                cv.drawChessboardCorners(
+                    img, CHECKERBOARD, corners2, ret)
 
                 cv.imshow('Intrinsic calibration', img)
-            if cv.waitKey(500) == ord('q'):
-                cv.destroyAllWindows()
-                break
-        cap.release()
+                cv.waitKey(500)
+
 
         """
         Performing camera calibration by passing the value of known 3D points (objpoints)
@@ -152,6 +145,7 @@ class Calibration:
             objpoints, imgpoints, gray.shape[::-1], None, None)
         print("intrinsic params: ", mtx)
         print("distortion params: ", dist)
+        print("extrinsic translational params: ", tvecs)
 
         self.K = mtx
         self.dist = dist
