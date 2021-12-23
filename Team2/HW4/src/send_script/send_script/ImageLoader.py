@@ -175,9 +175,13 @@ class Calibration:
             arm.move_to_pose(state_up)
 
         # Go back and take photo
+        '''
         photo = (self.mbTo @ self.photo_pose).T
         print(photo)
         arm.move_to_pose(np.hstack([photo[0], orientation]))
+        '''
+        # The camera position that defines the mbTc (from TA)
+        arm.move_to_pose([300.00, 100, 500, -180.00, 0.0, 135.0])
 
     def calibrate_extrinsic(self, img):
         """Procedures:
