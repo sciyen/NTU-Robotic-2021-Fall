@@ -29,6 +29,9 @@ class ArmControl:
         script1 = "PTP(\"CPP\","+targetP1+",100,200,0,false)"
         self.send_script(script1)
 
+    def take_photo(self):
+        self.send_script("Vision_DoJob(job1)")
+
 
 class Gripper:
     def __init__(self, arm) -> None:
