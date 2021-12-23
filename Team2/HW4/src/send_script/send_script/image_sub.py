@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 from cv_bridge import CvBridge
-from ImageLoader import Calibration
 from Gripper import ArmControl, Gripper
 
 from sensor_msgs.msg import Image
@@ -30,13 +29,10 @@ class ImageSub(Node):
         bridge = CvBridge()
         img = bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
 
-        cali = Calibration()
-        cali.calibrate_extrinsic(img)
-
         # To stack up the objects
         arm = ArmControl(send_script=send_script, set_io=set_io)
         gripper = Gripper(arm)
-        gripper.run()
+        gripper.run(img)
 
 
 def send_script(script):

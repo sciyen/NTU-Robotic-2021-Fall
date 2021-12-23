@@ -1,6 +1,7 @@
 import numpy as np
 import cv2 as cv
 import ImageProcessing
+from ImageLoader import ImageLoader
 
 
 class ArmControl:
@@ -41,43 +42,75 @@ class Gripper:
         """
 
         self.arm = arm
-
+        self.img_loader = ImageLoader()
         self.mbTc = self.img_loader.mbTc
 
-    def __grab_and_release(self, b_obj, b_psi_obj, b_target, b_psi_tar, zoffset_after_release):
-        orientation = [-180, 0, 135]
+    def __grab_and_release(self, b_obj_state, b_target_state, zoffset_after_release) -> None:
+        """Perform grab and release task.
 
-        # TODO: the z-angle need to be determined
-        b_grab_ori = np.array([orientation[0], orientation[1], b_psi_obj])
-        b_grab_pose = np.hstack([b_obj.T[0, :3], b_grab_ori])
+        initial  obj     target
+        +--------++------++
+                 |^      |^
+                 v|      v|
+                 grab    release 
 
-        b_ready_pose = b_grab_pose.copy()
-        b_ready_pose[2] += zoffset_after_release
-        # Move to target
-        self.arm.move_to_pose(b_ready_pose)
-        self.arm.release()
-        # Move downward
-        self.arm.move_to_pose(b_grab_pose)
-        self.arm.grab()
+        The states are defined as follow:
+        [x, y, z, alpha, beta, gamma] in base frame (the base of the arm)
 
-        b_release_ori = np.array([orientation[0], orientation[1], b_psi_tar])
-        b_release_pose = np.hstack([b_target.T[0, :3], b_release_ori])
-
-        b_ready_pose = b_release_pose.copy()
-        b_ready_pose[2] += zoffset_after_release
-        # Go to target position
-        self.arm.move_to_pose(b_ready_pose)
+        @Params:
+            b_obj_state: state of object to grab
+            b_target_state: state of object to release
+            zoffset_after_release: additional height before arriving
+        """
+        # ======= Move to object =======
+        b_ready_state = b_obj_state.copy()
+        b_ready_state[2] += zoffset_after_release
+        self.arm.move_to_pose(b_ready_state)
         self.arm.release()
         # Move down
-        self.arm.move_to_pose(b_release_pose)
+        self.arm.move_to_pose(b_obj_state)
+        self.arm.grab()
+        # Move up
+        self.arm.move_to_pose(b_ready_state)
 
-    def __transform_img_frame_to_arm_frame(self, im_pt):
+        # ======= Move to target =======
+        b_ready_state = b_target_state.copy()
+        b_ready_state[2] += zoffset_after_release
+        self.arm.move_to_pose(b_ready_state)
+        # Move down
+        self.arm.move_to_pose(b_target_state)
+        self.arm.release()
+        # Move up
+        self.arm.move_to_pose(b_ready_state)
+
+    def __transform_img_frame_to_arm_frame(self, im_pt) -> np.ndarray:
+        """Transform from image frame to arm frame
+
+        @Params:
+            im_pt: [x, y] in image frame
+
+        @Returns:
+            b_pt: [x, y, z] in base frame
+        """
         depth = None
         c_pt = self.img_loader.get_c_pt_im(im_pt, depth)
         b_pt = self.mbTc @ c_pt
-        return b_pt
+        return b_pt.T[0, :3]
 
-    def run(self, img):
+    def __transform_img_orient_to_arm_orient(self, im_psi):
+        orientation = np.array([-180, 0, 135])
+        # The z-axis's positive direction of image coordinate and
+        # the arm coordinate when alpha=-180, beta=0 and gamma=135
+        # are the same, so the offseted angle can be added directly.
+        # ---------> im_x   -----------> b_x
+        # |                 | gamma=135
+        # |                 |
+        # |                 |
+        # v im_y            v b_y
+        orientation[2] += im_psi
+        return orientation
+
+    def run(self, img, manual=False):
         # Find the largest object and set it as base
         mask = np.zeros(img.shape[:2], dtype=np.uint8)
         im_pt, im_pa, cnt = ImageProcessing.find_largest_object(
@@ -85,11 +118,15 @@ class Gripper:
         mask = cv.drawContours(mask, [cnt], -1, 255)
 
         # Transform to base frame
-        b_target = self.__transform_img_frame_to_arm_frame(im_pt)
+        b_target_pos = self.__transform_img_frame_to_arm_frame(im_pt)
+        b_target_ori = self.__transform_img_orient_to_arm_orient(im_pa)
+
+        if manual:
+            input("Press any key to continue")
 
         height_offset = np.array([[0, 0, 15]]).T
         # Iteration until no object can be found
-        for i in range(10):
+        for i in range(2):
             im_pt, im_pa, cnt = ImageProcessing.find_largest_object(
                 img=img, mask=mask)
             if cnt is None:
@@ -98,12 +135,20 @@ class Gripper:
             # Update the mask
             mask = cv.drawContours(mask, [cnt], -1, 255)
 
-            b_obj = self.__transform_img_frame_to_arm_frame(im_pt)
+            # Transform to base frame
+            b_obj_pos = self.__transform_img_frame_to_arm_frame(im_pt)
+            b_obj_ori = self.__transform_img_orient_to_arm_orient(im_pa)
+            b_obj_state = np.hstack([b_obj_pos, b_obj_ori])
 
             # The tower grows
-            b_target += height_offset * i
+            b_target_pos += height_offset * i
+            b_target_state = np.hstack([b_target_pos, b_target_ori])
+
+            if manual:
+                input("Press any key to continue")
+
             self.__grab_and_release(
-                b_obj, obj_orien, b_target, target_orien, zoffset_after_release=50)
+                b_obj_state, b_target_state, zoffset_after_release=50)
 
         cv.destroyAllWindows()
 
