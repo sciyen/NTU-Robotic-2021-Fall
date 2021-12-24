@@ -114,27 +114,38 @@ class Gripper:
     def run(self, img, manual=False):
         # Find the largest object and set it as base
         mask = np.zeros(img.shape[:2], dtype=np.uint8)
+        '''
+        # Stack up onto the largest one
         im_pt, im_pa, cnt = ImageProcessing.find_largest_object(
-            img=img, mask=None)
-        mask = cv.drawContours(mask, [cnt], -1, 255)
+            img=img, min_criteria=100, mask=mask)
+        mask = cv.drawContours(mask, [cnt], -1, 255, thickness=-1)
+        '''
 
         # Transform to base frame
+        # Stack up to a certain place and orientation
+        im_pt = (200, 200)
+        im_pa = 0
+
         b_target_pos = self.__transform_img_frame_to_arm_frame(im_pt)
         b_target_ori = self.__transform_img_orient_to_arm_orient(im_pa)
 
         if manual:
             input("Press any key to continue")
 
-        height_offset = np.array([[0, 0, 15]]).T
+        # Height of the brick
+        height_offset = np.array([0, 0, 20])
+        
         # Iteration until no object can be found
-        for i in range(2):
+        for i in range(10):
             im_pt, im_pa, cnt = ImageProcessing.find_largest_object(
-                img=img, mask=mask)
+                img=img, min_criteria=100, mask=mask)
             if cnt is None:
                 break
 
             # Update the mask
-            mask = cv.drawContours(mask, [cnt], -1, 255)
+            mask = cv.drawContours(mask, [cnt], -1, 255, thickness=-1)
+            cv.imshow('mask', mask)
+            cv.waitKey(1)
 
             # Transform to base frame
             b_obj_pos = self.__transform_img_frame_to_arm_frame(im_pt)
