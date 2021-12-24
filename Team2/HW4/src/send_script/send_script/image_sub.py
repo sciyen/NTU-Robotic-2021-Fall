@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 from cv_bridge import CvBridge
-from Gripper import ArmControl, Gripper
 
 from sensor_msgs.msg import Image
 from tm_msgs.srv import *
@@ -14,6 +13,7 @@ sys.path.append(
     '/home/robot/colcon_ws/install/tm_msgs/lib/python3.6/site-packages')
 sys.path.append('/home/robot/workspace2/team2_ws/src/send_script/send_script')
 
+from Gripper import ArmControl, Gripper
 
 class ImageSub(Node):
     def __init__(self, nodeName):

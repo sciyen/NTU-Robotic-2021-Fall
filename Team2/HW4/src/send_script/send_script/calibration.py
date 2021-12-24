@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 from cv_bridge import CvBridge
-from ImageLoader import Calibration
-from Gripper import ArmControl, Gripper
 import os
 import cv2 as cv
 
@@ -16,6 +14,9 @@ import sys
 sys.path.append(
     '/home/robot/colcon_ws/install/tm_msgs/lib/python3.6/site-packages')
 sys.path.append('/home/robot/workspace2/team2_ws/src/send_script/send_script')
+
+from ImageLoader import Calibration
+from Gripper import ArmControl, Gripper
 
 IMG_PATH = '/home/robot/workspace2/team2_ws/src/send_script/send_script/calibration'
 

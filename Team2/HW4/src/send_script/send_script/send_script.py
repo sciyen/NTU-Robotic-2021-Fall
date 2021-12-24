@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from ImageLoader import Calibration
-from Gripper import ArmControl
 import cv2 as cv
 
 from tm_msgs.srv import *
@@ -13,6 +11,9 @@ sys.path.append(
     '/home/robot/colcon_ws/install/tm_msgs/lib/python3.6/site-packages')
 
 sys.path.append('/home/robot/workspace2/team2_ws/src/send_script/send_script')
+
+from ImageLoader import Calibration
+from Gripper import ArmControl
 
 # arm client
 

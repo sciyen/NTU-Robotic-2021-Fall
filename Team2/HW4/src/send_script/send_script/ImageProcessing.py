@@ -82,7 +82,7 @@ def get_marker_pos(thresh, min_criteria=100, show=False):
     """
     # cnts = cv.findContours(thresh, cv.RETR_EXTERNAL,
     #                        cv.CHAIN_APPROX_SIMPLE)
-    _, cnts, _ = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    cnts, _ = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     # Sort the result with area size
     cnts = sorted(cnts, key=cv.contourArea)
