@@ -72,16 +72,12 @@ def main(args=None):
     # What does Vision_DoJob do? Try to use it...
     # -------------------------------------------------
 
+    '''
     arm = ArmControl(send_script, set_io)
     arm.release()
-
-    #arm.move_to_pose([212.00, 212, 105, -180.00, 0.0, 135.0])
-    '''
     arm.grab()
     arm.move_to_pose([300.00, 100, 105, -180.00, 0.0, 135.0])
     '''
-    cali = Calibration()
-    cali.setup_bricks(arm)
     send_script("Vision_DoJob(job1)")
     cv.waitKey(1)
     # --------------------------------------------------

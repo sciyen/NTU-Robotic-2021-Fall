@@ -96,7 +96,7 @@ class ImageSub(Node):
         if not os.path.isdir(IMG_PATH):
             os.mkdir(IMG_PATH)
 
-        cv.imwrite(os.path.join(IMG_PATH, str(id) + '.png'), img)
+        cv.imwrite(os.path.join(IMG_PATH, str(ImageSub.id) + '.png'), img)
         ImageSub.id += 1
         if not ImageSub.check_calibrate(img):
             send_script("Vision_DoJob(job1)")
@@ -105,8 +105,8 @@ class ImageSub(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-
     node = ImageSub('image_sub')
+    send_script("Vision_DoJob(job1)")
     rclpy.spin(node)
     node.destroy_node()
 

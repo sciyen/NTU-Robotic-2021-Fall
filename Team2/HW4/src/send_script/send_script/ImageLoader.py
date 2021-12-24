@@ -14,12 +14,12 @@ class Calibration:
     def __init__(self) -> None:
         h0 = 105
         self.samples = np.array([
-            [-200, 530, h0],
-            [0, 530, h0],
-            [200, 530, h0],
-            [-200, 330, h0],
-            [0, 330, h0],
-            [200, 330, h0]]).T
+            [100, 500, h0],
+            [200, 500, h0],
+            [300, 500, h0],
+            [100, 315, h0],
+            [200, 315, h0],
+            [300, 315, h0]]).T
         self.photo_pose = np.array([[0, 330, 700]]).T
         self.mbTo = utils.Rz(-np.pi/4)
 
@@ -31,25 +31,24 @@ class Calibration:
         else:
             print(
                 "No previous calibration file were found, start to calibrate intrinsic parameters.")
-            self.calibrate_intrinsic(img_path)
+            self.calibrate_intrinsic(img_path=img_path)
             self.write_intrinsic_to_file(path=path_to_intrinsic_param)
 
     def init_extrinsic(self, recalibrate_extrinsic,
                        arm=None,
                        extrinsic_img=None,
                        path_to_extrinsic_param='extrinsic_params.yaml'):
-        assert (recalibrate_extrinsic == True) and (arm is not None) and (
-            extrinsic_img is not None), "When recalibrate_extrinsic is enabled, the arm instance should be given"
+        assert (recalibrate_extrinsic != True) and ((arm is not None) or (
+            extrinsic_img is not None)), "When recalibrate_extrinsic is enabled, the arm instance should be given"
 
         if recalibrate_extrinsic:
             input("Press any key to start extrinsic parameters calibration")
-            self.setup_bricks(arm)
             arm.take_photo()
             self.calibrate_extrinsic(extrinsic_img)
             self.write_extrinsic_to_file(path=path_to_extrinsic_param)
         else:
             print("Load extrinsic from file")
-            self.load_extrinsic_to_file(path=path_to_extrinsic_param)
+            self.load_extrinsic_from_file(path=path_to_extrinsic_param)
 
     def load_intrinsic_from_file(self, path):
         s = cv.FileStorage(path, cv.FileStorage_READ)
@@ -75,7 +74,7 @@ class Calibration:
         s.write('tvec', self.tvec)
         s.release()
 
-    def calibrate_intrinsic(self, size_of_tile=0.023, img_path=None):
+    def calibrate_intrinsic(self, size_of_tile=23, img_path=None):
         """Record a video, extract the chessboard corners, and
         calibrate it with pairs of points.
 
@@ -96,12 +95,13 @@ class Calibration:
         # Defining the 3D world coordinates of the chessboard
         objp = np.zeros((CHECKERBOARD[1] * CHECKERBOARD[0], 3), np.float32)
         objp[:, :2] = np.mgrid[0:CHECKERBOARD[0],
-                                  0:CHECKERBOARD[1]].T.reshape(-1, 2) * size_of_tile
+                               0:CHECKERBOARD[1]].T.reshape(-1, 2) * size_of_tile
 
         # Arrays to store object points and image points from all the images.
         objpoints = []  # 3d point in real world space
         imgpoints = []  # 2d points in image plane.
-        images = glob.glob(os.path.join(img_path, '*.png')) # open all the images with finename extension "png"
+        # open all the images with finename extension "png"
+        images = glob.glob(os.path.join(img_path, '*.png'))
 
         # Load images
         for fname in images:
@@ -133,7 +133,6 @@ class Calibration:
 
                 cv.imshow('Intrinsic calibration', img)
                 cv.waitKey(500)
-
 
         """
         Performing camera calibration by passing the value of known 3D points (objpoints)
@@ -190,7 +189,8 @@ class Calibration:
 
         cv.imwrite('/home/robot/workspace2/team2_ws/img.png', img)
         thresh = ImageProcessing.object_filtering(img)
-        pose_pa, cnts = ImageProcessing.get_marker_pos(thresh)
+        pose_pa, cnts = ImageProcessing.get_marker_pos(
+            thresh, min_criteria=100, show=True)
         poses = np.array([p[0] for p in pose_pa])
         avg_pos = np.mean(poses, axis=0)
         print("average position of markers: ", avg_pos)
@@ -198,10 +198,9 @@ class Calibration:
         # Rearange the result of centroids
         img_points = np.zeros((len(poses), 2))
         upper = poses[poses[:, 1] < avg_pos[1]]
-        img_points[:3] = upper[np.argsort(upper[:, 0])]
+        img_points[:3] = upper[np.argsort(upper[:, 0])[:3]]
         lower = poses[poses[:, 1] > avg_pos[1]]
-        img_points[3:] = lower[np.argsort(lower[:, 0])]
-        print("img_points: ", img_points)
+        img_points[3:] = lower[np.argsort(lower[:, 0])[:3]]
 
         # SolvePnP
         # TODO: the intrinsic parameter might not be available
@@ -219,7 +218,7 @@ class Calibration:
 
         # The rvec and tvec transform the object frame to camera frame
         mcTb[:3, :3], jacobian = cv.Rodrigues(self.rvec)
-        mcTb[:3, 3] = self.tvec
+        mcTb[:3, 3] = self.tvec[:, 0]
 
         mbTc = np.linalg.inv(mcTb)
         return mbTc

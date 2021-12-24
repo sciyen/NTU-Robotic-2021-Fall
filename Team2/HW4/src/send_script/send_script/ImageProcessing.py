@@ -85,15 +85,16 @@ def get_marker_pos(thresh, min_criteria=100, show=False):
     cnts, _ = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     # Sort the result with area size
-    cnts = sorted(cnts, key=cv.contourArea)
+    cnts = sorted(cnts, key=cv.contourArea)[::-1]
 
     pose = []
     for cnt in cnts[:6]:
+        print('area:', cv.contourArea(cnt))
         if cv.contourArea(cnt) > min_criteria:
             centroid, pa = calc_area_desciptors(cnt)
             pose.append([centroid, pa])
             if show:
-                cv.circle(thresh, centroid, 5, (0, 0, 255), 2)
+                cv.circle(thresh, centroid.astype(int), 5, (0, 0, 255), 2)
     if show:
         cv.drawContours(thresh, cnts, -1, (255, 0, 0), -1)
         cv.imshow('thresh', thresh)

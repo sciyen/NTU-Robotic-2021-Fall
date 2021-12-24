@@ -70,6 +70,7 @@ class Gripper:
         # Move down
         self.arm.move_to_pose(b_obj_state)
         self.arm.grab()
+        self.arm.move_to_pose(b_obj_state)
         # Move up
         self.arm.move_to_pose(b_ready_state)
 
@@ -92,7 +93,7 @@ class Gripper:
         @Returns:
             b_pt: [x, y, z] in base frame
         """
-        depth = None
+        depth = 564-100
         c_pt = self.img_loader.get_c_pt_im(im_pt, depth)
         b_pt = self.mbTc @ c_pt
         return b_pt.T[0, :3]
@@ -141,8 +142,8 @@ class Gripper:
             b_obj_state = np.hstack([b_obj_pos, b_obj_ori])
 
             # The tower grows
-            b_target_pos += height_offset * i
             b_target_state = np.hstack([b_target_pos, b_target_ori])
+            b_target_pos += height_offset
 
             if manual:
                 input("Press any key to continue")
