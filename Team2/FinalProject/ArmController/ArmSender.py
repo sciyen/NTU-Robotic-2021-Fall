@@ -37,6 +37,19 @@ def serial_ports():
     return result
 
 
+arm_param = {
+    'h0': 50,
+    'alpha': 508
+}
+
+
+def get_command_from_mRTP(mRTP):
+    phi = np.arctan2(mRTP[1, 1], -mRTP[0, 1])
+    theta = np.arctan2(mRTP[2, 0], -mRTP[2, 2])
+    h = mRTP[2, 3] - arm_param['h0'] - arm_param['alpha'] * np.cos(theta)
+    return np.array([phi, theta, h])
+
+
 class ArmSender():
     """This module allow you to communicate with the Arm controller with 
     send() and read() function. It will send the command through USB com
@@ -102,7 +115,11 @@ if __name__ == '__main__':
     dt = 0.1
     while t < 50:
         pitch = np.sin(2*t) * np.pi / 2 + np.pi / 2
-        yaw = np.cos(4*t) * np.pi / 4
+        #pitch = 0
+        #yaw = np.cos(4*t) * np.pi / 4
+        yaw = 0
+        if (t > 30):
+            yaw = np.pi/4
         height = np.cos(t/5) * 2 + 10
         sender.send(yaw, pitch, height)
         print(sender.read())
