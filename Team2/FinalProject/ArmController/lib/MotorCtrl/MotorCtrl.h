@@ -67,7 +67,7 @@ public:
 
     void set_position_offset(double p) { position_offset = p * gear_ratio; }
 
-    double get_position() { return position / gear_ratio; }
+    double get_position() { return (position + position_offset) / gear_ratio; }
 
     int32_t get_counter() { return counter; }
 

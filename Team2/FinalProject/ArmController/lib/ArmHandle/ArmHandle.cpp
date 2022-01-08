@@ -26,7 +26,7 @@ ArmHandle::ArmHandle(const int _servoPin,
                    PIN_MOTOR2_A,
                    PIN_MOTOR2_B,
                    PIN_MOTOR2_E,
-                   1,
+                   0.65,
                    _enc_height)
 {
     p_pitch = pitch = 90;
