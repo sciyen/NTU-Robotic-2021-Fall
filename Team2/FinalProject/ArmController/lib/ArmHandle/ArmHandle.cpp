@@ -1,9 +1,15 @@
 #include <ArmHandle.h>
 
 ArmHandle::ArmHandle(const int _servoPin,
+                     const int _vr_pin,
+                     const int _btnUpPin,
+                     const int _btnDownPin,
                      ESP32Encoder *const _enc_yaw,
                      ESP32Encoder *const _enc_height)
     : servoPin(_servoPin),
+      vr_pin(_vr_pin),
+      btnUpPin(_btnUpPin),
+      btnDownPin(_btnDownPin),
       motor_yaw(MotorCtrl::ENC_TYPE::FULL_QUAD,
                 360,
                 CONFIG_ENC_UPDATE_FREQ,
@@ -20,9 +26,12 @@ ArmHandle::ArmHandle(const int _servoPin,
                    PIN_MOTOR2_A,
                    PIN_MOTOR2_B,
                    PIN_MOTOR2_E,
-                   0.6,
+                   1,
                    _enc_height)
 {
+    p_pitch = pitch = 90;
+    height_offset = 0;
+    yaw_offset = 0;
 }
 
 void ArmHandle::init()
@@ -53,6 +62,11 @@ void ArmHandle::init()
     Serial.println("Servo attached");
 
     Serial.println("Arm Control initialization finished!");
+
+    // VR
+    pinMode(vr_pin, INPUT);
+    pinMode(btnUpPin, INPUT_PULLUP);
+    pinMode(btnDownPin, INPUT_PULLUP);
 }
 
 void ArmHandle::encoder_update()
@@ -65,6 +79,28 @@ void ArmHandle::control_update()
 {
     motor_yaw.control();
     motor_height.control();
+
+    p_pitch += 0.1 * (pitch - p_pitch);
+    servo.write((int) p_pitch);
+}
+
+void ArmHandle::handle_adjustment()
+{
+    int vr = analogRead(vr_pin);
+    motor_yaw.set_position_offset((double) vr * 2 * PI / 3.3 / 4096 - PI +
+                                  yaw_offset);
+
+    if (vr > 4080)
+        yaw_offset += 0.1;
+    else if (vr < 80)
+        yaw_offset -= 0.1;
+
+    if (digitalRead(btnUpPin) == LOW)
+        height_offset += 1;
+    else if (digitalRead(btnDownPin) == LOW)
+        height_offset -= 1;
+
+    motor_height.set_position_offset(height_offset);
 }
 
 void ArmHandle::set(Command cmd)
@@ -75,7 +111,8 @@ void ArmHandle::set(Command cmd)
     // To move up for 1 centimeter
     motor_height.set_position(cmd.height);
 
-    servo.write((int) (RAD_TO_DEG * cmd.pitch));
+    pitch = (RAD_TO_DEG * cmd.pitch);
+    // servo.write((int) (RAD_TO_DEG * cmd.pitch));
 }
 
 bool ArmHandle::validCommandCheck(Command cmd)

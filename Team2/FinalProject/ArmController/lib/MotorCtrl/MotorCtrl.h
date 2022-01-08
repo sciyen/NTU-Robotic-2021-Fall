@@ -36,6 +36,8 @@ private:
     int32_t counter;
     int8_t ctrl_counter;
 
+    volatile int32_t position;
+    volatile int32_t position_offset;
 
 public:
     ESP32Encoder *enc;
@@ -44,7 +46,6 @@ public:
     volatile double p_cmd;
 
     volatile double velocity;
-    volatile int32_t position;
 
     CtrlParam param;
 
@@ -63,6 +64,8 @@ public:
     void set_param(CtrlParam p) { param = p; }
 
     void set_position(double p) { p_cmd = p * gear_ratio; }
+
+    void set_position_offset(double p) { position_offset = p * gear_ratio; }
 
     double get_position() { return position / gear_ratio; }
 

@@ -61,7 +61,7 @@ volatile void MotorCtrl::control()
 {
     if (ctrl_counter >= 5) {
         // position control
-        v_cmd = param.s_kp * (p_cmd - position);
+        v_cmd = param.s_kp * (p_cmd - position - position_offset);
         v_cmd = LIMIT(v_cmd, vel_limit);
         ctrl_counter = 0;
     }

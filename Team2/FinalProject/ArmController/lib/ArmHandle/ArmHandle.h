@@ -8,10 +8,17 @@ class ArmHandle
 {
 private:
     const int servoPin;
+    const int vr_pin;
+    const int btnUpPin;
+    const int btnDownPin;
     MotorCtrl motor_yaw;
     MotorCtrl motor_height;
 
     Servo servo;
+    double pitch;
+    double p_pitch;
+    double height_offset;
+    double yaw_offset;
 
 public:
     struct Command {
@@ -21,6 +28,9 @@ public:
     };
 
     ArmHandle(const int _servoPin,
+              const int _vr_pin,
+              const int _btnUpPin,
+              const int _btnDownPin,
               ESP32Encoder *const _enc_yaw,
               ESP32Encoder *const _enc_height);
 
@@ -29,6 +39,8 @@ public:
     void encoder_update();
 
     void control_update();
+
+    void handle_adjustment();
 
     void set(Command cmd);
 

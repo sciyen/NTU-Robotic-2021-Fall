@@ -16,6 +16,10 @@
 
 #define PIN_SERVO 15
 
+#define PIN_VR_YAW 34
+#define PIN_BTN_UP 35
+#define PIN_BTN_DOWN 36
+
 // encoder update freqency
 #define CONFIG_ENC_UPDATE_FREQ 20
 

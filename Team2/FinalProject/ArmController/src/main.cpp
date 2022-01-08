@@ -14,7 +14,12 @@ portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 hw_timer_t *timer_control = NULL;
 portMUX_TYPE timerMux_control = portMUX_INITIALIZER_UNLOCKED;
 
-ArmHandle arm(PIN_SERVO, &enc_yaw, &enc_hei);
+ArmHandle arm(PIN_SERVO,
+              PIN_VR_YAW,
+              PIN_BTN_UP,
+              PIN_BTN_DOWN,
+              &enc_yaw,
+              &enc_hei);
 
 void IRAM_ATTR on_encoder_update()
 {
@@ -54,6 +59,7 @@ void setup()
 void loop()
 {
     arm.processInput();
-    // arm.printState();
+    arm.printState();
+    arm.handle_adjustment();
     delay(100);
 }
