@@ -4,8 +4,8 @@ import sys
 import numpy as np
 import time
 import serial
-import io
 import glob
+import threading
 
 
 def serial_ports():
@@ -37,41 +37,76 @@ def serial_ports():
     return result
 
 
-class ArmSender:
-    def __init__(self, comport='COM3') -> None:
-        self.com = serial.Serial(comport, 115200)
+class ArmSender():
+    """This module allow you to communicate with the Arm controller with 
+    send() and read() function. It will send the command through USB com
+    port, so please remember to check the available com ports which will 
+    be printed in the begining of the program.
+
+    Usage: 
+        1. Construct the object.
+        2. Start the port listener by start().
+        3. You can send or read commands.
+        4. Remember to call close() to terminate the daemon.
+    """
+
+    def __init__(self, comport='/dev/ttyUSB0', timeout=5) -> None:
+        self.com = serial.Serial(comport, 115200, timeout=timeout)
         #self.sio = io.TextIOWrapper(io.BufferedRWPair(self.com, self.com))
         assert (self.com.is_open), "Failed to open comport"
+        self.thread = threading.Thread(target=self.__daemon)
+        self.thread_alive = True
+        self.data = np.zeros(3)
+
+        # Setup signal handler
+        def signal_handler(sig, frame):
+            self.close()
+            sys.exit(0)
+        signal.signal(signal.SIGINT, signal_handler)
+
+    def __daemon(self):
+        while self.thread_alive:
+            str = self.com.readline().decode('ascii')
+            try:
+                token = str.split((','))
+                self.data = np.array(token, dtype=float)
+            except:
+                print(str)
+        print("Daemon for serial port listener ended")
+
+    def start(self):
+        self.thread.start()
 
     def send(self, yaw, pitch, height):
         if (self.com.is_open):
             self.com.write(('{0}, {1}, {2}\n'.format(
                 yaw, pitch, height)).encode('ascii'))
-            # self.sio.flush()
+
+    def read(self):
+        return self.data
 
     def close(self):
+        print('Terminating comport...')
+        self.thread_alive = False
         self.com.close()
+        self.thread.join()
 
 
 if __name__ == '__main__':
     print(serial_ports())
 
     sender = ArmSender('/dev/ttyUSB0')
-
-    def signal_handler(sig, frame):
-        print('Terminating comport...')
-        sender.close()
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, signal_handler)
+    sender.start()
 
     t = 0
     dt = 0.1
     while t < 50:
-        pitch = np.sin(2*t) * np.pi / 8 + np.pi / 2
-        yaw = np.cos(t) * np.pi / 4
+        pitch = np.sin(2*t) * np.pi / 2 + np.pi / 2
+        yaw = np.cos(4*t) * np.pi / 4
         height = np.cos(t/5) * 2 + 10
         sender.send(yaw, pitch, height)
+        print(sender.read())
+
         time.sleep(dt)
         t += dt
     sender.close()
