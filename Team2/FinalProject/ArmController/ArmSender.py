@@ -49,6 +49,12 @@ def get_command_from_mRTP(mRTP):
     h = mRTP[2, 3] - arm_param['h0'] - arm_param['alpha'] * np.cos(theta)
     return np.array([phi, theta, h])
 
+def gen_command_from_mRTP(mRTP, h=arm_param['h0']):
+    x, y, z = mRTP[:3, 3]
+    d = np.sqrt(x**2 + y**2)
+    theta = np.pi/2 - np.arctan2((z-h-arm_param['h0']), d)
+    phi = np.arctan2(y, x)
+    return np.array([phi, theta, h])
 
 class ArmSender():
     """This module allow you to communicate with the Arm controller with 
@@ -79,9 +85,9 @@ class ArmSender():
 
     def __daemon(self):
         while self.thread_alive:
-            str = self.com.readline().decode('ascii')
+            str = self.com.readline()
             try:
-                token = str.split((','))
+                token = str.decode('ascii').split((','))
                 self.data = np.array(token, dtype=float)
             except:
                 print(str)
@@ -89,8 +95,12 @@ class ArmSender():
 
     def start(self):
         self.thread.start()
+        
+    def send(self, mRTP, h=arm_param['h0']):
+        cmds = gen_command_from_mRTP(mRTP, h=arm_param['h0'])
+        self.__send(cmds[0], cmds[1], cmds[2])
 
-    def send(self, yaw, pitch, height):
+    def __send(self, yaw, pitch, height):
         if (self.com.is_open):
             self.com.write(('{0}, {1}, {2}\n'.format(
                 yaw, pitch, height)).encode('ascii'))
@@ -108,16 +118,14 @@ class ArmSender():
 if __name__ == '__main__':
     print(serial_ports())
 
-    sender = ArmSender('/dev/ttyUSB0')
+    sender = ArmSender('/dev/ttyUSB1')
     sender.start()
 
     t = 0
     dt = 0.1
     while t < 50:
         pitch = np.sin(2*t) * np.pi / 2 + np.pi / 2
-        #pitch = 0
-        #yaw = np.cos(4*t) * np.pi / 4
-        yaw = 0
+        yaw = np.cos(4*t) * np.pi / 4
         if (t > 30):
             yaw = np.pi/4
         height = np.cos(t/5) * 2 + 10
